@@ -1,0 +1,9 @@
+.env
+_cfg
+node_modules
+auth-vars.yml
+cc_vars.yml
+latest*.yml
+*.bin
+ibm-ingress-deploy-config.yml
+ansible_debug*.log
