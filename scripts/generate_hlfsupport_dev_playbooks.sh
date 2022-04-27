@@ -6,7 +6,7 @@ ROOTDIR=$(cd "$(dirname "$0")/.." && pwd)
 # for targetting both IKS, and OCP
 
 DOCKER_REGISTRY=us.icr.io
-: ${DOCKER_REPOSITORY:=ibp-temp}
+: ${DOCKER_REPOSITORY:=ibm-hlfsupport-temp}
 : ${DOCKER_USERNAME:=iamapikey}     # iks had this as token??
 DOCKER_EMAIL=bmxbcv1@us.ibm.com
 : ${DOCKER_IMAGE_PREFIX:=ibm-hlfsupport}
@@ -24,19 +24,19 @@ ARCHITECTURE=amd64
 : ${DOCKER_PW}
 : ${CLUSTER_TYPE:=ocp}
 : ${PRODUCT_VERSION:=1.0.0}
+: ${PROJECT_NAME_VALUE:="hlf-network"}
+: ${CONSOLE_STORAGE_CLASS:="default"}
 
-if [ $CLUSTER_TYPE == "iks" ]; then
+if [[ $CLUSTER_TYPE == "iks" || $CLUSTER_TYPE == "k8s" ]]; then
   TARGET_VALUE=k8s
-  PROJECT_OR_NAMEPSACE_KEY=namespace
-  CONSOLE_STORAGE_CLASS="# not required"
+  PROJECT_OR_NAMEPSACE_KEY=namespace  
 elif [ $CLUSTER_TYPE == "ocp" ]; then
   TARGET_VALUE=openshift
-  PROJECT_OR_NAMEPSACE_KEY=project
-  CONSOLE_STORAGE_CLASS="# not required"
+  PROJECT_OR_NAMEPSACE_KEY=project  
 elif [ $CLUSTER_TYPE == "ocp-fyre" ]; then
   TARGET_VALUE=openshift
   PROJECT_OR_NAMEPSACE_KEY=project
-  CONSOLE_STORAGE_CLASS="console_storage_class: rook-cephfs"
+  CONSOLE_STORAGE_CLASS="rook-cephfs"
 else
   echo "CLUSTER_TYPE Unkown, can't create playbooks"
   exit -1
@@ -114,11 +114,11 @@ cat > $ROOTDIR/playbooks/latest-console.yml <<EOF
     state: present
     target: ${TARGET_VALUE}
     arch: ${ARCHITECTURE}
-    ${PROJECT_OR_NAMEPSACE_KEY}: marvin
+    ${PROJECT_OR_NAMEPSACE_KEY}: ${PROJECT_NAME_VALUE}
     console_domain: ${CONSOLE_DOMAIN}
     console_email: nobody@ibm.com
     console_default_password: new42day
-    ${CONSOLE_STORAGE_CLASS}
+    console_storage_class: ${CONSOLE_STORAGE_CLASS}
     image_registry: ${DOCKER_REGISTRY}
     image_repository: ${DOCKER_REPOSITORY}
     image_registry_url: ""
@@ -141,7 +141,7 @@ cat > $ROOTDIR/playbooks/latest-console.yml <<EOF
         deployerTag: ${DEPLOYER_TAG}
     console_versions:
       ca:
-        1.5.1-0:
+        1.5.3-0:
           default: true
           image:
             caImage: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/${DOCKER_IMAGE_PREFIX}-ca
@@ -150,7 +150,7 @@ cat > $ROOTDIR/playbooks/latest-console.yml <<EOF
             caInitTag: ${INIT_TAG}
             enrollerImage: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/${DOCKER_IMAGE_PREFIX}-enroller
             enrollerTag: ${ENROLLER_TAG}
-          version: 1.5.1-0
+          version: 1.5.3-0
       orderer:
         ${FABRIC_V2_FULL_VERSION}-0:
           default: true
@@ -193,3 +193,6 @@ cat > $ROOTDIR/playbooks/latest-console.yml <<EOF
   roles:
     - ibm.blockchain_platform.hlfsupport_console
 EOF
+
+
+env | grep TAG | sort

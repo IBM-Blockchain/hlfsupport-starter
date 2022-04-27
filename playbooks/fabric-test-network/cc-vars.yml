@@ -1,0 +1,5 @@
+---
+smart_contract_name: "asset-transfer"
+smart_contract_version: "1.0.0"
+smart_contract_sequence: 1
+smart_contract_package: /workspace/applications/contract-typescript/assettransfer.tgz

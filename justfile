@@ -1,7 +1,7 @@
 default:
   @just --list
 
-application: 
+contract: 
     cp /workspace/_cfg/auth-vars.yml /workspace/playbooks/fabric-test-network/
     /workspace/scripts/deploy_smart_contract.sh
     cp /workspace/playbooks/fabric-test-network/*.json /workspace/_cfg/
@@ -16,3 +16,6 @@ network:
 console:
     /workspace/scripts/install_console.sh
     cp /workspace/playbooks/fabric-test-network/auth-vars.yml /workspace/_cfg/
+
+bash:
+    bash --login

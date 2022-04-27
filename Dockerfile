@@ -34,7 +34,7 @@ RUN curl -L https://github.com/mayflower/docker-ls/releases/download/v0.3.2/dock
 # Fabric tooling
 RUN mkdir -p /opt/fabric \
     && curl -sSL https://github.com/hyperledger/fabric/releases/download/v2.2.1/hyperledger-fabric-linux-amd64-2.2.1.tar.gz | tar xzf - -C /opt/fabric  \
-    && curl -sSL https://github.com/hyperledger/fabric-ca/releases/download/v1.4.9/hyperledger-fabric-ca-linux-amd64-1.4.9.tar.gz | tar xzf - -C /opt/fabric
+    && curl -sSL https://github.com/hyperledger/fabric-ca/releases/download/v1.5.3/hyperledger-fabric-ca-linux-amd64-1.5.3.tar.gz | tar xzf - -C /opt/fabric
 ENV FABRIC_CFG_PATH=/opt/fabric/config
 ENV PATH=/opt/fabric/bin:${PATH}
 
@@ -52,26 +52,37 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
     && pip3.8 install  "ansible>=2.9,<2.10" fabric-sdk-py python-pkcs11 openshift semantic_version\
     && ansible --version 
 
-RUN mkdir -p /workspace \
-    && git clone -b main https://github.com/IBM-Blockchain/ansible-collection.git /workspace/ansible-collection \
-    && ansible-galaxy collection build /workspace/ansible-collection -f \
-    && ansible-galaxy collection install /ibm-blockchain_platform-*.tar.gz -f
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash \
-    && . /root/.nvm/nvm.sh \
-    && nvm install v14.18.1 \
-    && nvm alias default 14.18.1 \
-    && nvm use default 
+# Ensure that there is a node installation
+RUN mkdir -p  /usr/local/node  \
+    && curl -sSL https://nodejs.org/download/release/v16.4.0/node-v16.4.0-linux-x64.tar.xz | tar xJf - -C /usr/local/node --strip-components=1
+
+
+
+# Setup a user to run things as
+RUN groupadd fabric && useradd -rm -d /home/fabric-user -s /bin/bash -g fabric -g root -G sudo -u 1001 fabric -p "$(openssl passwd -1 fabric)"
+RUN mkdir -p /workspace && chown fabric /workspace
+USER fabric
+ENV PATH="/usr/local/node/bin:${PATH}"
 
 
 WORKDIR /workspace
-COPY scripts /workspace/scripts
-COPY utility /workspace/utility
-COPY playbooks /workspace/playbooks
-COPY justfile /workspace/
-RUN . /root/.nvm/nvm.sh && npm --prefix /workspace/utility/ibp_hlf_versions install
+
+# Get the very latest ansible collection
+RUN git clone -b main https://github.com/IBM-Blockchain/ansible-collection.git /workspace/ansible-collection \
+    && ansible-galaxy collection build /workspace/ansible-collection -f \
+    && ansible-galaxy collection install ibm-blockchain_platform-*.tar.gz -f
 
 
+
+
+COPY --chown=fabric scripts /workspace/scripts
+COPY --chown=fabric utility /workspace/utility
+COPY --chown=fabric playbooks /workspace/playbooks
+COPY --chown=fabric justfile /workspace/
+RUN  npm --prefix /workspace/utility/ibp_hlf_versions install
+
+# Use entry point, so that other command line args get passed to just directly
 ENTRYPOINT ["just"]

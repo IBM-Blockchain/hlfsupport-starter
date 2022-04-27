@@ -28,6 +28,8 @@ ROOTDIR=$(cd "$(dirname "$0")/.." && pwd)
 : ${PROJECT_NAME_VALUE:="hlf-network"}
 : ${CLUSTER_TYPE:="ocp"}
 
+: ${OFFERING:="hlfsupport"}
+
 ###
 # Ansible playbook installation of CRD and Operator/Console
 ###
@@ -37,7 +39,7 @@ if [ $CLUSTER_TYPE == "ocp" ]; then
     # pasword and user id login
     oc login ${OCP_URL} --password ${OCP_PASSWORD} --username ${OCP_USERNAME} --insecure-skip-tls-verify=true
   else
-    oc login --token=${OCP_TOKEN} --server=${OCP_TOKEN_SERVER}
+    oc login --token=${OCP_TOKEN} --server=${OCP_TOKEN_SERVER}  --insecure-skip-tls-verify=true
   fi
 else 
   echo "Using IBM IKS Cluster"
@@ -49,9 +51,9 @@ fi
 # Gererate playbooks (latest-crds.yml, latest-console.yml)
 echo "Generating Ansible playbooks"
 if [ $PRODUCTION_DOCKER_IMAGES == "1" ]; then
-	$ROOTDIR/scripts/generate_hlfsupport_playbooks.sh
+	$ROOTDIR/scripts/generate_${OFFERING}_playbooks.sh
 else
-	$ROOTDIR/scripts/generate_hlfsupport_dev_playbooks.sh
+	$ROOTDIR/scripts/generate_${OFFERING}_dev_playbooks.sh
 fi
 
 # IKS requires the Ingress Controller to be setup to support SSL Passthrough
@@ -95,10 +97,15 @@ sleep 2m
 
 # Build authentication variables required for the new Console (must change default password)
 echo "Generating authentication vars for new console"
-if [ $CLUSTER_TYPE == "iks" ]; then
+if [[ $CLUSTER_TYPE == "iks" || $CLUSTER_TYPE == "k8s" ]]; then
   IBP_CONSOLE=$(kubectl -n ${PROJECT_NAME_VALUE} get ingress -o json | jq ".items[0].spec.rules[0].host" -r)
 else
-  IBP_CONSOLE=$(kubectl get routes/hlf-console --namespace ${PROJECT_NAME_VALUE} -o=json | jq .spec.host | tr -d '"')
+  if [[ $OFFERING == "ibp" ]]; then
+    ROUTENAME=routes/ibp-console-console
+  else
+    ROUTENAME=routes/hlf-console
+  fi
+  IBP_CONSOLE=$(kubectl get $ROUTENAME --namespace ${PROJECT_NAME_VALUE} -o=json | jq .spec.host | tr -d '"')
 fi
 
 # Basic auth passed here must match that in the generated ansible playbooks. You have been warned.
